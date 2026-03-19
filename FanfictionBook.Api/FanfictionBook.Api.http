@@ -1,0 +1,6 @@
+@FanfictionBook.Api_HostAddress = http://localhost:5180
+
+GET {{FanfictionBook.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
