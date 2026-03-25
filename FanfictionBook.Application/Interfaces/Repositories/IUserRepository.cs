@@ -15,5 +15,6 @@ namespace FanfictionBook.Application.Interfaces.Repositories
         Task<UserEntity> GetUserByIdAsync(int id,  CancellationToken cancellationToken);
         Task<UserEntity> UpdateUserAsync(UserEntity newUser, string? newPassword, CancellationToken cancellationToken);
         Task DeleteUserAsync(int id, CancellationToken cancellationToken);
+        Task SaveChanges(CancellationToken cancellationToken);
     }
 }

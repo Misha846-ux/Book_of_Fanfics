@@ -103,6 +103,22 @@ namespace FanfictionBook.Infrastructure.Repositories
             }
         }
 
+        public async Task SaveChanges(CancellationToken cancellationToken)
+        {
+            try
+            {
+                await _context.SaveChangesAsync(cancellationToken);
+            }
+            catch (OperationCanceledException oex)
+            {
+                throw new Exception("User Repository: SaveChanges operation were canceled");
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("User Repository: Problem with SaveChanges");
+            }
+        }
+
         public async Task<UserEntity> UpdateUserAsync(UserEntity newUser, string? newPassword, CancellationToken cancellationToken)
         {
             try
@@ -120,7 +136,7 @@ namespace FanfictionBook.Infrastructure.Repositories
                 foreach(PropertyInfo prop in properties)
                 {
                     var value = prop.GetValue(newUser);
-                    if(value != null)
+                    if(value != null || value != string.Empty)
                     {
                         prop.SetValue(user, value);
                     }

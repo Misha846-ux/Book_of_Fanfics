@@ -1,12 +1,19 @@
 
+using FanfictionBook.Application.Interfaces.Helpers;
 using FanfictionBook.Application.Interfaces.Repositories;
 using FanfictionBook.Application.Interfaces.Services;
 using FanfictionBook.Application.Services;
+using FanfictionBook.Infrastructure.Configuration;
 using FanfictionBook.Infrastructure.Data;
-using FanfictionBook.Infrastructure.Repositories;
-using FanfictionBook.Application.Interfaces.Helpers;
-using Microsoft.EntityFrameworkCore;
 using FanfictionBook.Infrastructure.Helpers;
+using FanfictionBook.Infrastructure.Repositories;
+using FanfictionBook.Infrastructure.Services;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.OpenApi.Models;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 namespace FanfictionBook.Api
 {
@@ -15,6 +22,17 @@ namespace FanfictionBook.Api
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
+
+            var configuration = builder.Configuration;
+
+            var jwtSettings = configuration
+            .GetSection("Jwt")
+            .Get<JwtSettings>()
+            ?? throw new Exception("JWT settings not configured.");
+
+            builder.Services.Configure<JwtSettings>(
+                configuration.GetSection("Jwt"));
+
 
             // Add services to the container.
 
@@ -31,6 +49,7 @@ namespace FanfictionBook.Api
 
             //==============================Services=========================================
             builder.Services.AddScoped<IUserService, UserService>();
+            builder.Services.AddScoped<IJwtService, JwtService>();
 
             //==============================Helpers==========================================
             builder.Services.AddScoped<IHashHelper, HashHelper>();
@@ -41,6 +60,62 @@ namespace FanfictionBook.Api
             {
                 options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
             });
+
+            builder.Services.AddControllers();
+            // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+            builder.Services.AddEndpointsApiExplorer();
+            builder.Services.AddSwaggerGen(opt =>
+            {
+                opt.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+                {
+                    Name = "Authorization",
+                    Type = SecuritySchemeType.Http,
+                    Scheme = "bearer",
+                    BearerFormat = "JWT",
+                    In = ParameterLocation.Header,
+                    Description = "Enter JWT token"
+                });
+
+                opt.AddSecurityRequirement(new OpenApiSecurityRequirement
+            {
+                {
+                    new OpenApiSecurityScheme
+                    {
+                        Reference = new OpenApiReference
+                        {
+                            Type = ReferenceType.SecurityScheme,
+                            Id = "Bearer"
+                        }
+                    },
+                    Array.Empty<string>()
+                }
+            });
+            });
+
+            builder.Services.AddAuthentication(options =>
+            {
+                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+            }).AddJwtBearer(options =>
+            {
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+
+                    ValidIssuer = jwtSettings.Issuer,
+                    ValidAudience = jwtSettings.Audience,
+                    IssuerSigningKey = new SymmetricSecurityKey(
+            Encoding.UTF8.GetBytes(jwtSettings.Key)
+        ),
+
+                    ClockSkew = TimeSpan.Zero
+                };
+            });
+
+            builder.Services.AddAuthorization();
 
             var app = builder.Build();
 
